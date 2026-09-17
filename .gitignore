@@ -1,2 +1,16 @@
 .env
 .venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/web/.env
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.DS_Store
+
+AI_STUDY_ASSISTANT_DESIGN.md

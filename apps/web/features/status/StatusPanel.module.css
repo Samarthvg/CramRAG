@@ -1,0 +1,40 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.meta {
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+.block {
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+}
+
+.block h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.ok {
+  border-color: #2f6b3a;
+}
+
+.error {
+  border-color: #8a3b3b;
+}
+
+.payload {
+  margin: 0;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

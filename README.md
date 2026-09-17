@@ -5,7 +5,7 @@ grounded in slides, transcripts, and notes.
 
 ## Setup
 
-Requires Docker Desktop and Python 3.11.
+Requires Docker Desktop, Python 3.11, and Node.js LTS (for the web app).
 
 **1. Environment file**
 
@@ -40,6 +40,26 @@ Two rows means you are good.
 Check it:
 
     docker compose exec db psql -U cramrag -d cramrag -c "\dt"
+
+## Frontend
+
+The Next.js app lives in `apps/web`. It is run locally with npm (not Docker yet).
+The API base URL defaults to `http://localhost:8000`; until FastAPI is added,
+`/dev/status` will correctly report the API as unreachable.
+
+    cd apps/web
+    cp .env.example .env
+    npm install
+    npm run dev
+
+Open http://localhost:3000. Useful scripts:
+
+    npm run lint
+    npm test
+    npm run build
+
+Database setup above is unchanged (`docker compose up -d`). The web app does not
+talk to Postgres directly.
 
 ## Schema changes
 
