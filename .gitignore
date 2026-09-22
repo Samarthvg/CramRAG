@@ -1,5 +1,11 @@
 .env
+
+# Python
 .venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
 
 # Node / Next.js
 node_modules/
@@ -12,5 +18,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .DS_Store
+
+# Course material: never commit copyrighted source documents
+data/
+
+# Agent instruction files, including the ones `next dev` regenerates
+CLAUDE.md
+AGENTS.md
+.claude/
 
 AI_STUDY_ASSISTANT_DESIGN.md

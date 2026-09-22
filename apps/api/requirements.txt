@@ -1,0 +1,23 @@
+# Direct dependencies only. Pip resolves the transitive ones.
+# Do not regenerate this with `pip freeze` — that records the whole installed
+# tree, including platform-specific packages that break on other machines.
+
+# Web API
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pydantic-settings==2.15.0
+
+# Database
+SQLAlchemy==2.0.54
+alembic==1.20.0
+psycopg[binary]==3.3.5
+pgvector==0.5.0
+
+# Ingestion
+pymupdf==1.28.2
+fastembed==0.8.0
+numpy==2.4.6
+
+# Support
+python-dotenv==1.2.3
+loguru==0.7.3
