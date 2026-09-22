@@ -32,11 +32,6 @@ password, and database name above it.
     docker compose up -d
 
 Postgres runs on host port 5433, so it will not clash with a native install.
-Confirm the extensions loaded:
-
-    docker compose exec db psql -U cramrag -d cramrag -c "SELECT extname FROM pg_extension WHERE extname IN ('vector','pg_trgm');"
-
-Two rows means you are good.
 
 **3. Python environment**
 
@@ -57,9 +52,10 @@ Alembic lives in `apps/api` and must be run from there:
     cd apps/api
     alembic upgrade head
 
-Check it:
+Check it. Six tables plus `alembic_version`, and both extensions:
 
     docker compose exec db psql -U cramrag -d cramrag -c "\dt"
+    docker compose exec db psql -U cramrag -d cramrag -c "SELECT extname FROM pg_extension WHERE extname IN ('vector','pg_trgm');"
 
 **5. Web app**
 
@@ -124,8 +120,11 @@ Useful commands, all from `apps/api`:
     alembic history      # all migrations in order
     alembic downgrade -1 # undo the last one
 
-Note that `db/init/001_extensions.sql` only runs when the database volume is
-first created. It is for extensions only; real schema work goes in migrations.
+The first migration creates the `vector` and `pg_trgm` extensions before any
+tables, with `IF NOT EXISTS`. That is deliberate: a Postgres first-boot script
+only runs when a local Docker volume is created, so it does nothing in CI or on
+a managed host. Doing it in the migration means every environment gets the
+schema the same way, from one command.
 
 ## Resetting the database
 

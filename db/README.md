@@ -77,6 +77,7 @@ from different models in one similarity search.
 See the root README. Reset with `docker compose down -v` then
 `docker compose up -d` and `alembic upgrade head`.
 
-`db/init/001_extensions.sql` runs only when the volume is first created, and is
-for extensions only. Adding files there later does nothing. Real schema work goes
-in migrations.
+The `vector` and `pg_trgm` extensions are created by the first migration, before
+any tables. A Postgres first-boot script would only run when a local Docker
+volume is created, which leaves CI and any managed host without them, so
+`alembic upgrade head` owns the whole schema including its extensions.
