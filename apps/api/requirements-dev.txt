@@ -1,0 +1,6 @@
+-r requirements.txt
+
+pytest==9.1.1
+# Starlette's TestClient deprecates httpx in favour of httpx2 and warns when
+# only the old one is present. httpx itself still arrives via huggingface_hub.
+httpx2==2.13.0

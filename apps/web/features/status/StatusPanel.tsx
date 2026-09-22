@@ -113,8 +113,11 @@ export function StatusPanel() {
         API base URL: <code>{baseUrl}</code>
       </p>
       <p className={styles.muted}>
-        Until FastAPI is running, these checks will show as unreachable. That is
-        expected in Phase 0 frontend-only setup.
+        Each check calls the API directly from the browser. A failure here means
+        either the API is not running (<code>uvicorn cramrag.main:app --reload</code>{" "}
+        in <code>apps/api</code>) or it cannot reach the database
+        (<code>docker compose up -d</code>). A degraded readiness response names
+        the part that failed.
       </p>
       <CheckBlock title="GET /health/live" result={live} />
       <CheckBlock title="GET /health/ready" result={ready} />
