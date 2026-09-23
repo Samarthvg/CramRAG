@@ -40,9 +40,16 @@ async function loadCheck<T>(
 function CheckBlock<T>({
   title,
   result,
+  tone,
 }: {
   title: string;
   result: CheckState<T>;
+  /**
+   * Some endpoints answer successfully while reporting that something is
+   * wrong. Without this, a degraded readiness response renders in the same
+   * green panel as a healthy one.
+   */
+  tone?: (data: T) => "ok" | "warn";
 }) {
   if (result.state === "loading") {
     return (
@@ -64,8 +71,12 @@ function CheckBlock<T>({
     );
   }
 
+  const level = tone ? tone(result.data) : "ok";
+
   return (
-    <section className={`${styles.block} ${styles.ok}`}>
+    <section
+      className={`${styles.block} ${level === "warn" ? styles.warn : styles.ok}`}
+    >
       <h2>{title}</h2>
       <pre className={styles.payload}>
         {JSON.stringify(result.data, null, 2)}
@@ -120,7 +131,11 @@ export function StatusPanel() {
         the part that failed.
       </p>
       <CheckBlock title="GET /health/live" result={live} />
-      <CheckBlock title="GET /health/ready" result={ready} />
+      <CheckBlock
+        title="GET /health/ready"
+        result={ready}
+        tone={(data) => (data.status === "ok" ? "ok" : "warn")}
+      />
       <CheckBlock
         title="GET /api/v1/config/capabilities"
         result={capabilities}

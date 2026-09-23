@@ -8,12 +8,22 @@ import type {
 export class ApiError extends Error {
   readonly status: number | null;
   readonly url: string;
+  /**
+   * The parsed error payload, when the API sent one. The API returns problem
+   * details with its failures; dropping them turns an actionable message into
+   * a bare status code.
+   */
+  readonly body: unknown;
 
-  constructor(message: string, options: { status?: number | null; url: string }) {
+  constructor(
+    message: string,
+    options: { status?: number | null; url: string; body?: unknown },
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = options.status ?? null;
     this.url = options.url;
+    this.body = options.body ?? null;
   }
 }
 
@@ -22,9 +32,23 @@ export type ApiClientOptions = {
   fetch?: typeof fetch;
 };
 
+async function readJsonOrNull(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 async function getJson<T>(
   path: string,
   options: ApiClientOptions = {},
+  /**
+   * Statuses whose body is a real answer rather than a failure, and so should
+   * be returned instead of thrown. Readiness replies 503 when degraded, and
+   * that response carries the diagnosis.
+   */
+  alsoAccept: readonly number[] = [],
 ): Promise<T> {
   const baseUrl = options.baseUrl ?? getApiBaseUrl();
   const url = apiUrl(path, baseUrl);
@@ -43,10 +67,10 @@ async function getJson<T>(
     throw new ApiError(`API unreachable: ${detail}`, { url, status: null });
   }
 
-  if (!response.ok) {
+  if (!response.ok && !alsoAccept.includes(response.status)) {
     throw new ApiError(
       `API request failed with HTTP ${response.status}`,
-      { url, status: response.status },
+      { url, status: response.status, body: await readJsonOrNull(response) },
     );
   }
 
@@ -67,7 +91,9 @@ export function getLive(options?: ApiClientOptions): Promise<LiveHealthResponse>
 export function getReady(
   options?: ApiClientOptions,
 ): Promise<ReadyHealthResponse> {
-  return getJson<ReadyHealthResponse>("/health/ready", options);
+  // A degraded API answers 503 and names the failing check in the body. That
+  // is the diagnosis we want to show, so it is parsed rather than thrown.
+  return getJson<ReadyHealthResponse>("/health/ready", options, [503]);
 }
 
 export function getCapabilities(

@@ -22,6 +22,12 @@ def get_engine() -> Engine:
         # Connections can be killed by a container restart while idle in the
         # pool; pre_ping discards those instead of failing the first query.
         pool_pre_ping=True,
+        # Without this, connecting to a host that accepts the TCP connection
+        # and then never answers blocks until the OS gives up, which is minutes.
+        # A stopped Docker container behaves exactly that way, and it makes
+        # /health/ready hang instead of reporting the database as unreachable.
+        # A readiness check that hangs is no more useful than one that lies.
+        connect_args={"connect_timeout": 3},
     )
 
 
