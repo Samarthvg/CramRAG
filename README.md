@@ -3,15 +3,27 @@
 Study assistant over course material: question answering, flashcards, and quizzes
 grounded in slides, transcripts, and notes.
 
+## Layout
+
+    apps/api/        FastAPI backend, the ingestion pipeline, and Alembic migrations
+    apps/web/        Next.js web app
+    db/init/         Postgres first-boot scripts (extensions only)
+    data/            Course material. Gitignored, never committed.
+
+The `.env` and `docker-compose.yml` stay at the repository root: one `.env`
+serves both Compose, which uses `POSTGRES_*` to create the database, and the
+API, which uses `DATABASE_URL` to connect to it. Keeping them in one file is the
+easiest way to keep them in agreement.
+
 ## Setup
 
-Requires Docker Desktop, Python 3.11, and Node.js LTS (for the web app).
+Requires Docker Desktop, Python 3.11, and Node.js LTS.
 
 **1. Environment file**
 
 Copy the example and fill in your own local values. These only create your local
-Postgres account, so pick anything. `DATABASE_URL` must match the user, password,
-and database name above it.
+Postgres account, so pick anything. `DATABASE_URL` must match the user,
+password, and database name above it.
 
     cp .env.example .env
 
@@ -20,72 +32,99 @@ and database name above it.
     docker compose up -d
 
 Postgres runs on host port 5433, so it will not clash with a native install.
-Confirm the extensions loaded:
-
-    docker compose exec db psql -U cramrag -d cramrag -c "SELECT extname FROM pg_extension WHERE extname IN ('vector','pg_trgm');"
-
-Two rows means you are good.
 
 **3. Python environment**
 
     py -3.11 -m venv .venv
     .\.venv\Scripts\Activate.ps1      # Windows
     source .venv/bin/activate         # macOS or Linux
-    pip install -r requirements.txt
+    pip install -e apps/api -r apps/api/requirements-dev.txt
+
+The editable install is what puts `cramrag` on the import path, so pytest and
+Alembic can both find it from anywhere. `requirements.txt` lists only direct
+dependencies — do not regenerate it with `pip freeze`, which records the entire
+installed tree including packages that only exist on one operating system.
 
 **4. Apply the schema**
 
+Alembic lives in `apps/api` and must be run from there:
+
+    cd apps/api
     alembic upgrade head
 
-Check it:
+Check it. Six tables plus `alembic_version`, and both extensions:
 
     docker compose exec db psql -U cramrag -d cramrag -c "\dt"
+    docker compose exec db psql -U cramrag -d cramrag -c "SELECT extname FROM pg_extension WHERE extname IN ('vector','pg_trgm');"
 
-## Frontend
-
-The Next.js app lives in `apps/web`. It is run locally with npm (not Docker yet).
-The API base URL defaults to `http://localhost:8000`; until FastAPI is added,
-`/dev/status` will correctly report the API as unreachable.
+**5. Web app**
 
     cd apps/web
     cp .env.example .env
     npm install
-    npm run dev
 
-Open http://localhost:3000. Useful scripts:
+## Running
 
-    npm run lint
-    npm test
-    npm run build
+Three processes. The database is already running from step 2.
 
-Database setup above is unchanged (`docker compose up -d`). The web app does not
-talk to Postgres directly.
+    docker compose up -d                                    # database
+
+    cd apps/api && uvicorn cramrag.main:app --reload         # API on :8000
+
+    cd apps/web && npm run dev                               # web app on :3000
+
+Open http://localhost:3000/dev/status. It calls all three API endpoints and
+prints what came back, which is the quickest way to confirm the whole stack is
+talking. Interactive API docs are at http://localhost:8000/docs.
+
+`GET /health/ready` returns 503 rather than 200 when the database is
+unreachable, missing an extension, or un-migrated. A readiness check that
+reports success while the database is down is worse than having none, so the
+status code reflects the real state and the `checks` object says which part
+failed.
+
+## Tests
+
+    cd apps/api && pytest                 # unit tests, no database needed
+    cd apps/api && pytest -m integration  # needs the database up and migrated
+
+    cd apps/web && npm test
+    cd apps/web && npm run lint
+
+Integration tests are deselected by default so that `pytest` passes with Docker
+stopped. Anything that needs a live database must be marked
+`@pytest.mark.integration`.
 
 ## Schema changes
 
-The schema is managed by Alembic, in `migrations/versions/`. Never change the
-database by hand with psql, or our two local databases drift apart and the
-difference is painful to find later.
+The schema is managed by Alembic, in `apps/api/migrations/versions/`. Never
+change the database by hand with psql, or our two local databases drift apart
+and the difference is painful to find later.
 
 **After every pull**, apply anything new:
 
-    alembic upgrade head
+    cd apps/api && alembic upgrade head
 
 **To make a change**, create a migration and write the SQL in it:
 
-    alembic revision -m "add flashcards table"
+    cd apps/api && alembic revision -m "add flashcards table"
 
 Fill in both `upgrade()` and `downgrade()`, apply it locally with
-`alembic upgrade head`, then commit the file.
+`alembic upgrade head`, then commit the file. Migrations are written by hand
+rather than autogenerated, because the schema is the design and it is worth
+reading. See `db/README.md` for what the tables are and why.
 
-Useful commands:
+Useful commands, all from `apps/api`:
 
     alembic current      # which migration this database is on
     alembic history      # all migrations in order
     alembic downgrade -1 # undo the last one
 
-Note that `db/init/001_extensions.sql` only runs when the database volume is
-first created. It is for extensions only; real schema work goes in migrations.
+The first migration creates the `vector` and `pg_trgm` extensions before any
+tables, with `IF NOT EXISTS`. That is deliberate: a Postgres first-boot script
+only runs when a local Docker volume is created, so it does nothing in CI or on
+a managed host. Doing it in the migration means every environment gets the
+schema the same way, from one command.
 
 ## Resetting the database
 
@@ -93,4 +132,4 @@ This destroys all data and gives you a clean database:
 
     docker compose down -v
     docker compose up -d
-    alembic upgrade head
+    cd apps/api && alembic upgrade head

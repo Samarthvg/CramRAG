@@ -128,4 +128,60 @@ describe("api client", () => {
       url: "http://api.test/health/live",
     });
   });
+
+  it("keeps the error payload on ApiError instead of discarding it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "boom" }), { status: 500 }),
+    );
+
+    await expect(
+      getLive({
+        baseUrl: "http://api.test",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toMatchObject({ status: 500, body: { detail: "boom" } });
+  });
+
+  it("returns the degraded readiness body instead of throwing on 503", async () => {
+    const degraded = {
+      status: "degraded",
+      checks: { database: "unreachable (OperationalError)" },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(degraded), { status: 503 }),
+    );
+
+    const result = await getReady({
+      baseUrl: "http://api.test",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual(degraded);
+  });
+
+  it("still throws when readiness fails in a way it cannot explain", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("<html>gateway timeout</html>", { status: 504 }),
+    );
+
+    await expect(
+      getReady({
+        baseUrl: "http://api.test",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toMatchObject({ name: "ApiError", status: 504 });
+  });
+
+  it("does not accept 503 on endpoints that have no degraded state", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: "degraded" }), { status: 503 }),
+    );
+
+    await expect(
+      getCapabilities({
+        baseUrl: "http://api.test",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
 });

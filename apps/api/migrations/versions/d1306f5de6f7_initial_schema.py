@@ -19,6 +19,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
+    # db/init/001_extensions.sql only runs when a local Docker volume is first
+    # created. It does not run in CI, where Postgres is a service container with
+    # nothing mounted, nor on a managed host. Creating them here instead means
+    # every environment gets them the same way from `alembic upgrade head`.
+    # IF NOT EXISTS keeps this a no-op on databases that already have them.
+    op.execute("""
+    CREATE EXTENSION IF NOT EXISTS vector;
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    """)
+
     op.execute("""
     CREATE TABLE courses (
         id          bigserial PRIMARY KEY,
